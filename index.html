@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>أبو العلا — V1</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#020202;color:#eee;font-family:Arial}
+#game{position:fixed;inset:0}canvas{display:block}#hud{position:fixed;top:15px;right:15px;z-index:5;text-shadow:0 2px 8px #000}
+#floor{font-size:22px;font-weight:bold}#objective{margin-top:5px}#cross{position:fixed;left:50%;top:50%;width:10px;height:10px;margin:-5px;z-index:4}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff}.x:before{width:10px;height:1px;top:4px}.x:after{width:1px;height:10px;left:4px}
+#start{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#181818,#000 75%)}
+.card{width:min(90%,430px);padding:30px;text-align:center;background:#090909ee;border:1px solid #333;border-radius:18px}
+h1{font-size:50px;margin:0 0 10px}button{padding:14px 25px;border:0;border-radius:12px;font-size:18px;font-weight:bold}
+#hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:7;background:#000c;padding:9px 15px;border-radius:10px}
+#touch{display:none;position:fixed;inset:0;z-index:10;pointer-events:none}.pad{position:absolute;left:18px;bottom:20px;width:145px;height:145px;pointer-events:auto}
+.b{position:absolute;width:48px;height:48px;border:1px solid #fff5;border-radius:50%;background:#fff2;color:#fff;display:grid;place-items:center;user-select:none}
+#u{left:49px}#d{left:49px;bottom:0}#l{left:0;top:49px}#r{right:0;top:49px}
+#actions{position:absolute;right:18px;bottom:20px;pointer-events:auto}.round{position:static;width:70px;height:70px}
+#flash{position:absolute;right:80px;bottom:7px;width:55px;height:55px;font-size:11px}
+@media(pointer:coarse){#touch{display:block}}
+</style></head>
+<body>
+<div id="game"></div><div id="hud"><div id="floor">الطابق 1 / 10</div><div id="objective">ابحث عن المصعد.</div></div>
+<div id="cross" class="x"></div><div id="hint"></div>
+<div id="touch"><div class="pad"><div class="b" id="u">▲</div><div class="b" id="d">▼</div><div class="b" id="l">◀</div><div class="b" id="r">▶</div></div>
+<div id="actions"><div class="b round" id="act">تفاعل</div><div class="b" id="flash">نور</div></div></div>
+<div id="start"><div class="card"><h1>أبو العلا 👹</h1><p>زلزال قوي ضرب البناية... وبعده اختفى الجميع.</p><p>الوصول إلى الطابق العاشر هو طريقك الوحيد.</p><button id="go">ابدأ اللعبة</button><p style="font-size:12px">PC: WASD + Mouse + E + F<br>الهاتف: أزرار الشاشة</p></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const S=new THREE.Scene();S.background=new THREE.Color(0x020202);S.fog=new THREE.FogExp2(0x050505,.045);
+const C=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.05,100);C.position.set(0,1.7,8);
+const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;game.appendChild(R.domElement);
+S.add(new THREE.HemisphereLight(0x777777,0x050505,.35));
+const FL=new THREE.SpotLight(0xffffff,4,22,Math.PI/7,.55,1);FL.castShadow=true;S.add(FL,FL.target);
+const M={floor:new THREE.MeshStandardMaterial({color:0x202020}),wall:new THREE.MeshStandardMaterial({color:0x151515}),door:new THREE.MeshStandardMaterial({color:0x292929}),black:new THREE.MeshStandardMaterial({color:0x010101})};
+function box(w,h,d,m,x,y,z){let q=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);q.position.set(x,y,z);q.castShadow=q.receiveShadow=true;S.add(q);return q}
+box(20,.3,32,M.floor,0,0,0);box(20,4,.3,M.wall,0,2,-16);box(20,4,.3,M.wall,0,2,16);box(.3,4,32,M.wall,-10,2,0);box(.3,4,32,M.wall,10,2,0);
+box(.3,4,9,M.wall,-4,2,-11.5);box(.3,4,9,M.wall,4,2,-11.5);box(.3,4,9,M.wall,-4,2,11.5);box(.3,4,9,M.wall,4,2,11.5);
+const E=box(3.2,3,.7,M.door,0,1.5,-14.8);
+const G=new THREE.Group();let body=new THREE.Mesh(new THREE.CapsuleGeometry(.48,1.9,8,16),M.black);body.position.y=1.2;body.scale.set(.75,1.3,.75);G.add(body);
+let head=new THREE.Mesh(new THREE.SphereGeometry(.52,20,14),M.black);head.position.y=2.75;G.add(head);
+let eye=new THREE.MeshBasicMaterial({color:0xffffff});[-.18,.18].forEach(x=>{let q=new THREE.Mesh(new THREE.SphereGeometry(.045,8,8),eye);q.position.set(x,2.8,.49);G.add(q)});G.position.set(0,0,-12);G.visible=false;S.add(G);
+const K={};onkeydown=e=>{K[e.code]=1;if(e.code==='KeyF')flash();if(e.code==='KeyE')interact();if(e.code==='KeyR'&&dead)location.reload()};onkeyup=e=>K[e.code]=0;
+let yaw=0,pitch=0,lock=false;R.domElement.onclick=()=>{if(started)R.domElement.requestPointerLock?.()};onpointerlockchange=()=>lock=document.pointerLockElement===R.domElement;
+onmousemove=e=>{if(lock){yaw-=e.movementX*.0022;pitch=Math.max(-1.3,Math.min(1.3,pitch-e.movementY*.0022))}};
+function bind(id,k){let q=document.getElementById(id);['touchstart','mousedown'].forEach(t=>q.addEventListener(t,e=>{e.preventDefault();K[k]=1}));['touchend','mouseup'].forEach(t=>q.addEventListener(t,e=>{e.preventDefault();K[k]=0}))}
+bind('u','KeyW');bind('d','KeyS');bind('l','KeyA');bind('r','KeyD');act.onclick=interact;flash.onclick=flash;
+let started=false,dead=false,floorN=1,quake=3.5,awake=false;
+function flash(){FL.intensity=FL.intensity?0:4}
+function hint(t){hintEl.textContent=t;hintEl.style.display='block';clearTimeout(hint.t);hint.t=setTimeout(()=>hintEl.style.display='none',2200)}
+const hintEl=document.getElementById('hint');
+function interact(){if(!started||dead)return;if(C.position.distanceTo(E.position)<4){if(floorN<10){floorN++;document.getElementById('floor').textContent=`الطابق ${floorN} / 10`;C.position.set(0,1.7,8);G.position.set((Math.random()-.5)*7,0,-12);hint(`وصلت للطابق ${floorN} 👀`);if(floorN===10){document.getElementById('objective').textContent='وصلت للطابق 10...';hint('🏆 النهاية الأولى!')} }else{hint('🏆 نجوت... مؤقتاً 😈')}}}
+go.onclick=()=>{start.style.display='none';started=true;R.domElement.requestPointerLock?.();hint('الزلزال بدأ... ابحث عن المصعد!');setTimeout(()=>{awake=true;G.visible=true;objective.textContent='أبو العلا استيقظ... لا تدعه يمسك بك.';hint('سمعت صوتاً خلفك... 👹')},12000)};
+const clock=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);let dt=Math.min(clock.getDelta(),.05);
+if(started&&!dead){if(quake>0){quake-=dt;C.position.x+=Math.sin(performance.now()*.05)*.012;C.position.z+=Math.cos(performance.now()*.06)*.012}
+C.rotation.order='YXZ';C.rotation.y=yaw;C.rotation.x=pitch;let sp=3.4*dt;let f=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)),r=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+if(K.KeyW)C.addScaledVector(f,-sp);if(K.KeyS)C.addScaledVector(f,sp);if(K.KeyA)C.addScaledVector(r,-sp);if(K.KeyD)C.addScaledVector(r,sp);
+C.position.x=Math.max(-9,Math.min(9,C.position.x));C.position.z=Math.max(-15,Math.min(15,C.position.z));C.position.y=1.7;
+FL.position.copy(C.position);FL.target.position.copy(C.position).add(new THREE.Vector3(Math.sin(yaw),Math.sin(pitch),Math.cos(yaw)));
+if(awake){let d=new THREE.Vector3().subVectors(C.position,G.position);d.y=0;let dist=d.length();if(dist<18&&dist>.8){d.normalize();G.position.addScaledVector(d,dt*(floorN>6?2.5:1.55));G.lookAt(C.position.x,G.position.y,C.position.z)}if(dist<1.1){dead=true;hint('💀 أبو العلا أمسك بك! اضغط R لإعادة المحاولة')}}}
+R.render(S,C)}
+loop();onresize=()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)};
+</script></body></html>
